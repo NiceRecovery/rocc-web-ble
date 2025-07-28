@@ -14,10 +14,24 @@ body {
    
   
   button {
-    padding: 10px 20px;
-    font-size: 16px;
-  }
+  padding: 10px 20px;
+  border: none;
+  background-color: #007bff;
+  color: white;
+  border-radius: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
   
+  .button-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
   ul {
     list-style-type: none;
     padding: 0;
@@ -72,3 +86,8 @@ body {
     font-size: 14px;
   }
   
+  @media (max-width: 600px) {
+  button {
+    flex: 1 1 100%;
+  }
+}

@@ -52,8 +52,40 @@ const statusCharUUID = 'd973f2e1-b19e-11e2-9e96-0800200c9a66';
 let commandCharacteristic;
 let statusCharacteristic;
 
+let text = '';
+
 const scanButton = document.getElementById('scanButton');
 const deviceList = document.getElementById('deviceList');
+const downloadButton = document.getElementById('downloadBtn');
+
+const csvRows = [];
+let headersWritten = false;
+
+function objectToCSVRow(obj, includeHeader = false) {
+  const timestamp = new Date().toISOString(); // current UTC timestamp
+  const keys = Object.keys(obj);
+  const values = Object.values(obj);
+
+  let rows = '';
+
+  if (includeHeader) {
+    rows += ['Timestamp', ...keys].join(',') + '\n';
+  }
+
+  rows += [timestamp, ...values].join(',') + '\n';
+  return rows;
+}
+
+function handleIncomingData(data) {
+    // Write headers only once
+    if (!headersWritten) {
+        csvRows.push(objectToCSVRow(data, true));
+        headersWritten = true;
+        downloadButton.style.display = 'inline-block';
+    } else {
+        csvRows.push(objectToCSVRow(data));
+    }
+}
 
 scanButton.addEventListener('click', async () => {
     clearDeviceList();
@@ -81,6 +113,21 @@ scanButton.addEventListener('click', async () => {
         console.error('Scan failed:', error);
         alert('Scan failed or cancelled: ' + error.message);
     }
+});
+
+// Create and download CSV Blob
+downloadButton.addEventListener('click', () => {
+    const blob = new Blob(csvRows, { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'streamed_data.csv';
+    document.body.appendChild(a);
+    a.click();
+
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 });
 
 async function connectToDevice(device) {
@@ -113,11 +160,8 @@ function handleNotification(event) {
                 break;
             }
             const opsLog = parseOpsLog(dataView);
-            //console.log("📘 OpsLog:", opsLog);
-            //overwriteLog(`${JSON.stringify(opsLog)}`);
-            // for (const [key, value] of Object.entries(opsLog)) {
-            //     console.log(`   ${key}: ${value}`);
-            //   }
+            
+            handleIncomingData(opsLog);
             renderOpsLogCard(opsLog);
             break;
 
@@ -151,37 +195,37 @@ function handleNotification(event) {
 
 function bufferToHex(buffer) {
     return [...new Uint8Array(buffer)]
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join(' ');
-  }
-  
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join(' ');
+}
+
 
 async function writeCommand(commandByteArray) {
     if (!commandCharacteristic) {
-      console.error("Command characteristic not available");
-      return false;
+        console.error("Command characteristic not available");
+        return false;
     }
-  
+
     try {
-      const value = new Uint8Array(commandByteArray);
-      await commandCharacteristic.writeValue(value);
-      console.log(`➡️ Sent command: ${bufferToHex(value.buffer)}`);
-      return true;
+        const value = new Uint8Array(commandByteArray);
+        await commandCharacteristic.writeValue(value);
+        console.log(`➡️ Sent command: ${bufferToHex(value.buffer)}`);
+        return true;
     } catch (err) {
-      console.error("Failed to write command:", err);
-      return false;
+        console.error("Failed to write command:", err);
+        return false;
     }
-  }
-  
-  async function enableOpsLog() {
+}
+
+async function enableOpsLog() {
     const CMD_ENABLE_OPSLOG = 0x80;
-  
+
     const success = await writeCommand([CMD_ENABLE_OPSLOG]);
     if (!success) {
-      appendLog("❌ Failed to send EnableOpsLog command");
-      return false;
+        appendLog("❌ Failed to send EnableOpsLog command");
+        return false;
     }
-  
+
     return true;
-  }
-  
+}
+

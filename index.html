@@ -3,12 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <title>ROCC BLE</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
     <div class="main-container">
         <h1>ROCC WEB BLE</h1>
-        <button id="scanButton">Scan for Devices</button>
+        <div class="button-row">
+          <button id="scanButton">Connect</button>
+          <button id="downloadBtn" style="display: none;">Download</button>
+        </div>
         <ul id="deviceList"></ul>
       </div>
   <script type="module" src="js/bleScanner.js"></script>
