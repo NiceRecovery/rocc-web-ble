@@ -60,6 +60,7 @@ const downloadButton = document.getElementById('downloadBtn');
 
 const csvRows = [];
 let headersWritten = false;
+const connectedDevices = {};
 
 function objectToCSVRow(obj, includeHeader = false) {
   const timestamp = new Date().toISOString(); // current UTC timestamp
@@ -87,31 +88,73 @@ function handleIncomingData(data) {
     }
 }
 
+document.getElementById('connectRocc').addEventListener('click', async () => {
+    try {
+        const customDevice = await navigator.bluetooth.requestDevice({
+            filters: [{ namePrefix: 'NRS-ROCC' }],
+            optionalServices: [serviceUUID]
+        });
+        await connectToDevice(customDevice, 'rocc');
+    } catch (error) {
+        console.error(error);
+    }
+});
+
+document.getElementById('connectThermometer').addEventListener('click', async () => {
+    try {
+        const thermometerDevice = await navigator.bluetooth.requestDevice({
+            filters: [{ services: ['health_thermometer'] }],
+            optionalServices: ['battery_service']
+        });
+        await connectToDevice(thermometerDevice, 'thermometer');
+    } catch (error) {
+        console.error(error);
+    }
+});
+
+document.getElementById('connectHeartRate').addEventListener('click', async () => {
+    try {
+        const heartRateDevice = await navigator.bluetooth.requestDevice({
+            filters: [{ services: ['heart_rate'] }],
+            optionalServices: ['battery_service']
+        });
+        await connectToDevice(heartRateDevice, 'heartRate');
+    } catch (error) {
+        console.error(error);
+    }
+});
+
+
 scanButton.addEventListener('click', async () => {
     clearDeviceList();
 
     try {
-        const device = await navigator.bluetooth.requestDevice({
+        alert("Select your ROCC");
+        // Connect to custom RTYK device
+        const customDevice = await navigator.bluetooth.requestDevice({
             filters: [{ namePrefix: 'NRS-ROCC' }],
-            optionalServices: [serviceUUID]
+            optionalServices: [serviceUUID] // Replace with actual UUID
         });
+        connectedDevices.custom = await connectToDevice(customDevice, 'custom');
 
-        connectToDevice(device).then(() => {
-            //appendLog(`Connected to ${device.name}`);
-
-            enableOpsLog().then(success => {
-                if (success == false) {
-                    appendLog("Failed to enable OpsLog.");
-                }
-            });
-        }).catch(error => {
-            console.error('Connection error:', error);
-            alert('Connection failed: ' + error.message);
+        // Connect to Health Thermometer
+        alert("Now select the Health Thermometer");
+        const thermometerDevice = await navigator.bluetooth.requestDevice({
+            filters: [{ services: ['health_thermometer'] }],
+            optionalServices: ['battery_service']
         });
+        connectedDevices.thermometer = await connectToDevice(thermometerDevice, 'thermometer');
+
+        // Connect to Heart Rate Monitor
+        alert("Finally, select the Heart Rate Monitor");
+        const heartRateDevice = await navigator.bluetooth.requestDevice({
+            filters: [{ services: ['heart_rate'] }],
+            optionalServices: ['battery_service']
+        });
+        connectedDevices.heartRate = await connectToDevice(heartRateDevice, 'heartRate');
 
     } catch (error) {
-        console.error('Scan failed:', error);
-        alert('Scan failed or cancelled: ' + error.message);
+        console.error("Error during BLE device selection:", error);
     }
 });
 
@@ -130,7 +173,23 @@ downloadButton.addEventListener('click', () => {
     URL.revokeObjectURL(url);
 });
 
-async function connectToDevice(device) {
+async function discoverRoccServices(server) {
+    try {
+        const service = await server.getPrimaryService(serviceUUID);
+
+        commandCharacteristic = await service.getCharacteristic(commandCharUUID);
+        statusCharacteristic = await service.getCharacteristic(statusCharUUID);
+
+        await statusCharacteristic.startNotifications();
+        statusCharacteristic.addEventListener('characteristicvaluechanged', handleNotification);
+
+    } catch (error) {
+        console.error('Connection error:', error);
+        alert('Connection failed: ' + error.message);
+    }
+}
+
+async function connectToDevice11(device) {
     try {
         const server = await device.gatt.connect();
         const service = await server.getPrimaryService(serviceUUID);
@@ -145,6 +204,92 @@ async function connectToDevice(device) {
         console.error('Connection error:', error);
         alert('Connection failed: ' + error.message);
     }
+}
+
+async function connectToDevice(device, label) {
+    const server = await device.gatt.connect();
+    console.log(`${label} connected:`, device.name);
+
+    switch (label) {
+        case 'thermometer':
+            const thermometerService = await server.getPrimaryService('health_thermometer');
+            const tempChar = await thermometerService.getCharacteristic('temperature_measurement');
+            await tempChar.startNotifications();
+            tempChar.addEventListener('characteristicvaluechanged', event => {
+                const value = parseTemperature(event.target.value);
+                console.log(`Temperature: ${value.toFixed(2)} °C`);
+                const tempData = parseTemperatureMeasurement(event.target.value);
+                console.log(`Temperature: ${tempData.temperature.toFixed(2)} ${tempData.unit}`);
+            });
+            break;
+
+        case 'heartRate':
+            const heartService = await server.getPrimaryService('heart_rate');
+            const hrChar = await heartService.getCharacteristic('heart_rate_measurement');
+            await hrChar.startNotifications();
+            hrChar.addEventListener('characteristicvaluechanged', event => {
+                const bpm = parseHeartRate(event.target.value);
+                console.log(`Heart Rate: ${bpm} bpm`);
+            });
+            break;
+
+        case 'rocc':
+            discoverRoccServices(server).then(() => {
+            enableOpsLog().then(success => {
+                if (success == false) {
+                    appendLog("Failed to enable OpsLog.");
+                }
+            });
+        }).catch(error => {
+            console.error('Connection error:', error);
+            alert('Connection failed: ' + error.message);
+        });
+            break;
+    }
+
+    return device;
+}
+
+// Helper: Parse temperature (IEEE-11073 32-bit float)
+function parseTemperature(value) {
+    const data = new DataView(value.buffer);
+    console.log(`Raw temperature data: ${bufferToHex(value.buffer)}`);
+    const flag = data.getUint8(0);
+    const tempRaw = data.getUint32(1, true); // Little endian
+    return tempRaw * 0.01;
+}
+
+function parseTemperatureMeasurement(value) {
+    const dataView = new DataView(value.buffer);
+    const flags = dataView.getUint8(0);
+    const unitIsFahrenheit = flags & 0x01;
+
+    // Extract Mantissa (3 bytes), Little Endian
+    const mantissa =
+        dataView.getUint8(1) |
+        (dataView.getUint8(2) << 8) |
+        (dataView.getUint8(3) << 16);
+
+    // Sign extend 24-bit integer
+    const signedMantissa = (mantissa & 0x800000) ? (mantissa | 0xFF000000) : mantissa;
+
+    // Exponent is signed 8-bit int
+    const exponent = dataView.getInt8(4);
+
+    const temperature = signedMantissa * Math.pow(10, exponent);
+
+    return {
+        temperature,
+        unit: unitIsFahrenheit ? "°F" : "°C"
+    };
+}
+
+// Helper: Parse Heart Rate (8-bit format)
+function parseHeartRate(value) {
+    const data = new DataView(value.buffer);
+    const flags = data.getUint8(0);
+    const hrFormat = flags & 0x01;
+    return hrFormat === 1 ? data.getUint16(1, true) : data.getUint8(1);
 }
 
 function handleNotification(event) {
