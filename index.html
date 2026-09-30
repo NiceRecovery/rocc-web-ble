@@ -2,19 +2,36 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>ROCC BLE</title>
+  <title>ROCC Control</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <div class="main-container">
-        <h1>ROCC WEB BLE</h1>
-        <div class="button-row">
-          <button id="scanButton">Connect</button>
-          <button id="downloadBtn" style="display: none;">Download</button>
-        </div>
-        <ul id="deviceList"></ul>
-      </div>
-  <script type="module" src="js/bleScanner.js"></script>
+  <header class="app-header">
+    <h1>ROCC Control</h1>
+    <div class="header-actions">
+      <div id="unitToggle"></div>
+      <div id="connectionBadge"></div>
+    </div>
+  </header>
+
+  <main class="main-container">
+    <div class="button-row">
+      <button id="connectButton" class="btn btn-primary">Connect</button>
+      <button id="downloadButton" class="btn btn-secondary" hidden>Download CSV</button>
+    </div>
+
+    <div id="targetTempCard" class="card-slot"></div>
+
+    <div class="card-grid">
+      <div id="systemCard" class="card-slot"></div>
+      <div id="leftCard" class="card-slot"></div>
+      <div id="rightCard" class="card-slot"></div>
+    </div>
+
+    <div id="deviceInfoCard" class="card-slot"></div>
+  </main>
+
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
