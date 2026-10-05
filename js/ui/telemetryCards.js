@@ -1,4 +1,5 @@
 import { fromCelsius, suffixFor } from '../units/temperatureUnit.js';
+import { formatTimeToTarget } from '../utils/format.js';
 
 function fmt(value, digits, unit) {
   return value != null ? `${value.toFixed(digits)}${unit}` : 'N/A';
@@ -76,7 +77,9 @@ export class SystemCard {
         </div>
         <div class="metric-rows">
           <div class="metric-row"><span class="metric-label">Battery Voltage</span><span data-el="voltage" class="metric-value success"></span></div>
+          <div class="metric-row"><span class="metric-label">Battery Temp</span><span data-el="battTemp" class="metric-value temp"></span></div>
           <div class="metric-row"><span class="metric-label">Discharge Current</span><span data-el="discharge" class="metric-value warn"></span></div>
+          <div class="metric-row"><span class="metric-label">Time to Target</span><span data-el="timeToTarget" class="metric-value"></span></div>
         </div>
       </div>
     `;
@@ -84,7 +87,9 @@ export class SystemCard {
     this.refs = {
       connIcon: container.querySelector('[data-el="connIcon"]'),
       voltage: container.querySelector('[data-el="voltage"]'),
+      battTemp: container.querySelector('[data-el="battTemp"]'),
       discharge: container.querySelector('[data-el="discharge"]'),
+      timeToTarget: container.querySelector('[data-el="timeToTarget"]'),
     };
 
     store.subscribe((state) => this._render(state));
@@ -92,8 +97,16 @@ export class SystemCard {
 
   _render(state) {
     const data = state.roccData ?? {};
+    const unit = state.tempUnit;
+
     this.refs.voltage.textContent = fmt(data['voltage'], 2, ' V');
+    this.refs.battTemp.textContent = fmt(
+      data['battery-temp'] != null ? fromCelsius(data['battery-temp'], unit) : null,
+      1,
+      suffixFor(unit),
+    );
     this.refs.discharge.textContent = fmt(data['discharge-current'], 2, ' A');
+    this.refs.timeToTarget.textContent = formatTimeToTarget(data['time-to-target-ms']);
     this.refs.connIcon.textContent = state.connected ? '●' : '○';
     this.refs.connIcon.className = `conn-icon ${state.connected ? 'online' : 'offline'}`;
   }

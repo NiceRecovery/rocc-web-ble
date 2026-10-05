@@ -15,6 +15,7 @@ export class RoccService {
     this.onConnectionChange = () => {};
     this.onTelemetry = () => {};
     this.onSysInfo = () => {};
+    this.onAdvTelemetry = () => {};
 
     this._handleNotification = this._handleNotification.bind(this);
     this._handleDisconnected = this._handleDisconnected.bind(this);
@@ -84,6 +85,84 @@ export class RoccService {
     return true;
   }
 
+  // -- Advanced Mode: direct low-level overrides (dev-tooling only, see
+  // RoccCommand's comment) --------------------------------------------
+
+  async setFanPwm(side, pwm) {
+    const clamped = Math.min(Math.max(Math.round(pwm), 0), 100);
+    return this._writeCommand([RoccCommand.fanPwmSet, side, clamped]);
+  }
+
+  async setPeltierEnable(side, enabled) {
+    return this._writeCommand([RoccCommand.peltierEnable, side, enabled ? 1 : 0]);
+  }
+
+  async setPeltierVoltage(side, mv) {
+    const payload = new DataView(new ArrayBuffer(2));
+    payload.setUint16(0, Math.round(mv), true);
+    return this._writeCommand([
+      RoccCommand.peltierVoltageSet,
+      side,
+      payload.getUint8(0),
+      payload.getUint8(1),
+    ]);
+  }
+
+  async stopPeltierVoltage(side) {
+    return this._writeCommand([RoccCommand.peltierVoltageStop, side]);
+  }
+
+  async setPeltierCurrent(side, amps) {
+    const payload = new DataView(new ArrayBuffer(2));
+    payload.setUint16(0, Math.round(amps * 1000), true);
+    return this._writeCommand([
+      RoccCommand.peltierCurrentSet,
+      side,
+      payload.getUint8(0),
+      payload.getUint8(1),
+    ]);
+  }
+
+  async stopPeltierCurrent(side) {
+    return this._writeCommand([RoccCommand.peltierCurrentStop, side]);
+  }
+
+  async setVoltageDtGain(mvPerF) {
+    const payload = new DataView(new ArrayBuffer(2));
+    payload.setInt16(0, Math.round(mvPerF * 10), true);
+    return this._writeCommand([
+      RoccCommand.voltageDtGainSet,
+      payload.getUint8(0),
+      payload.getUint8(1),
+    ]);
+  }
+
+  async setDtShapingConst(k) {
+    const payload = new DataView(new ArrayBuffer(2));
+    payload.setInt16(0, Math.round(k * 1000), true);
+    return this._writeCommand([
+      RoccCommand.dtShapingConstSet,
+      payload.getUint8(0),
+      payload.getUint8(1),
+    ]);
+  }
+
+  async enableAdvTelemetry() {
+    return this._writeCommand([RoccCommand.advTelemetryEnable]);
+  }
+
+  async disableAdvTelemetry() {
+    return this._writeCommand([RoccCommand.advTelemetryDisable]);
+  }
+
+  /** Deactivates both sides - stops setpoints, disables peltier, zeroes fan. Used on Stop/error. */
+  async deactivateSide(side) {
+    await this.stopPeltierVoltage(side);
+    await this.stopPeltierCurrent(side);
+    await this.setPeltierEnable(side, false);
+    await this.setFanPwm(side, 0);
+  }
+
   _handleDisconnected() {
     this.commandChar = null;
     this.statusChar = null;
@@ -119,6 +198,11 @@ export class RoccService {
         if (info) this.onSysInfo(info);
         break;
       }
+      case RoccStatus.advLog: {
+        const advTelemetry = this._parseAdvLog(data);
+        if (advTelemetry) this.onAdvTelemetry(advTelemetry);
+        break;
+      }
       case RoccStatus.userSw:
         console.log('UserSw event');
         break;
@@ -137,7 +221,7 @@ export class RoccService {
   }
 
   _parseOpsLog(data) {
-    if (data.byteLength < 52) {
+    if (data.byteLength < 60) {
       console.warn('OpsLog frame too short:', data.byteLength);
       return null;
     }
@@ -185,6 +269,8 @@ export class RoccService {
     const peltvoltRight = readUint16() / 1000.0; // mV -> V
     const dischargeCurrent = readUint16() / 1000.0; // mA -> A
     const regulatingFlags = readUint8();
+    const batteryTemp = f2c(readFloat());
+    const timeToTargetMs = readUint32();
 
     return {
       ...left,
@@ -195,6 +281,10 @@ export class RoccService {
       'discharge-current': dischargeCurrent,
       'regulating-left': (regulatingFlags & 0x01) !== 0,
       'regulating-right': (regulatingFlags & 0x02) !== 0,
+      'battery-temp': batteryTemp,
+      // 0 until both sides first reach target for the current cooling
+      // session, then holds that elapsed time (ms) - not a live countdown.
+      'time-to-target-ms': timeToTargetMs,
     };
   }
 
@@ -225,6 +315,22 @@ export class RoccService {
       opState,
       fileioInitialized,
       targetTempF,
+    };
+  }
+
+  _parseAdvLog(data) {
+    if (data.byteLength < 12) {
+      console.warn('AdvLog frame too short:', data.byteLength);
+      return null;
+    }
+
+    return {
+      fanRpmLeft: data.getUint16(1, true),
+      fanRpmRight: data.getUint16(3, true),
+      fanPwmLeft: data.getUint8(5),
+      fanPwmRight: data.getUint8(6),
+      batteryTempF: data.getFloat32(7, true),
+      errorType: data.getUint8(11),
     };
   }
 }

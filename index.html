@@ -12,24 +12,32 @@
     <div class="header-actions">
       <div id="unitToggle"></div>
       <div id="connectionBadge"></div>
+      <button id="advancedModeToggle" class="btn btn-secondary">Advanced Mode</button>
     </div>
   </header>
 
   <main class="main-container">
     <div class="button-row">
       <button id="connectButton" class="btn btn-primary">Connect</button>
-      <button id="downloadButton" class="btn btn-secondary" hidden>Download CSV</button>
     </div>
 
-    <div id="targetTempCard" class="card-slot"></div>
+    <div id="dashboardView">
+      <div class="button-row">
+        <button id="downloadButton" class="btn btn-secondary" hidden>Download CSV</button>
+      </div>
 
-    <div class="card-grid">
-      <div id="systemCard" class="card-slot"></div>
-      <div id="leftCard" class="card-slot"></div>
-      <div id="rightCard" class="card-slot"></div>
+      <div id="targetTempCard" class="card-slot"></div>
+
+      <div class="card-grid">
+        <div id="systemCard" class="card-slot"></div>
+        <div id="leftCard" class="card-slot"></div>
+        <div id="rightCard" class="card-slot"></div>
+      </div>
+
+      <div id="deviceInfoCard" class="card-slot"></div>
     </div>
 
-    <div id="deviceInfoCard" class="card-slot"></div>
+    <div id="advancedView" hidden></div>
   </main>
 
   <script type="module" src="js/main.js"></script>

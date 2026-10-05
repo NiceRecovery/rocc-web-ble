@@ -281,6 +281,124 @@ body {
   color: white;
 }
 
+.btn-danger {
+  background: var(--accent-danger);
+}
+
+/* Advanced Mode */
+
+.advanced-warning {
+  background: color-mix(in srgb, var(--accent-warning) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent-warning) 40%, var(--surface-border));
+  color: var(--accent-warning);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.field-row.field-disabled {
+  opacity: 0.45;
+}
+
+.field-row input,
+.field-row select {
+  background: var(--bg);
+  border: 1px solid var(--surface-border);
+  color: var(--text-primary);
+  border-radius: 6px;
+  padding: 6px 8px;
+  width: 120px;
+  font-size: 13px;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.side-config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin: 12px 0;
+}
+
+.side-config {
+  border: 1px solid var(--surface-border);
+  border-radius: 10px;
+  padding: 12px;
+  margin: 0;
+}
+
+.side-config legend {
+  padding: 0 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.error-banner {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent-danger) 15%, transparent);
+  color: var(--accent-danger);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sample-table-wrap {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--surface-border);
+  border-radius: 10px;
+}
+
+.sample-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.sample-table th,
+.sample-table td {
+  padding: 6px 8px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.sample-table th:first-child,
+.sample-table td:first-child {
+  text-align: left;
+}
+
+.sample-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.sample-table tbody tr:nth-child(odd) {
+  background: color-mix(in srgb, white 3%, transparent);
+}
+
 @media (max-width: 600px) {
   .btn {
     flex: 1 1 100%;

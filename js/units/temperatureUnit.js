@@ -15,6 +15,11 @@ export function suffixFor(unit) {
   return unit === TemperatureUnit.FAHRENHEIT ? '°F' : '°C';
 }
 
+/** Short unit letter (no degree symbol) - for CSV column headers etc. */
+export function labelFor(unit) {
+  return unit === TemperatureUnit.FAHRENHEIT ? 'F' : 'C';
+}
+
 export function fromCelsius(celsius, unit) {
   return unit === TemperatureUnit.FAHRENHEIT ? (celsius * 9) / 5 + 32 : celsius;
 }

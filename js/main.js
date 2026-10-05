@@ -7,11 +7,13 @@ import { UnitToggle } from './ui/unitToggle.js';
 import { TargetTempCard } from './ui/targetTempCard.js';
 import { SystemCard, SideCard } from './ui/telemetryCards.js';
 import { DeviceInfoCard } from './ui/deviceInfoCard.js';
+import { AdvancedModeView } from './ui/advancedMode/advancedModeView.js';
 
 const store = new Store({
   connected: false,
   roccData: null,
   sysInfo: null,
+  advTelemetry: null,
   targetTempSetState: TargetTempSetState.IDLE,
   tempUnit: loadStoredUnit(),
 });
@@ -27,6 +29,7 @@ roccService.onConnectionChange = (connected) => {
       connected: false,
       roccData: null,
       sysInfo: null,
+      advTelemetry: null,
       targetTempSetState: TargetTempSetState.IDLE,
     });
     return;
@@ -42,6 +45,10 @@ roccService.onTelemetry = (data) => {
 
 roccService.onSysInfo = (info) => {
   store.setState({ sysInfo: info, targetTempSetState: TargetTempSetState.IDLE });
+};
+
+roccService.onAdvTelemetry = (advTelemetry) => {
+  store.setState({ advTelemetry });
 };
 
 // Mount UI modules
@@ -97,4 +104,24 @@ connectButton.addEventListener('click', async () => {
   }
 });
 
-downloadButton.addEventListener('click', () => csvLogger.download());
+downloadButton.addEventListener('click', () => csvLogger.download(store.state.tempUnit));
+
+// Advanced Mode: a separate view swapped in over the dashboard, not mixed
+// into it - built lazily on first toggle since it's a dev-only feature.
+const dashboardView = document.getElementById('dashboardView');
+const advancedView = document.getElementById('advancedView');
+const advancedModeToggle = document.getElementById('advancedModeToggle');
+let advancedModeBuilt = false;
+
+advancedModeToggle.addEventListener('click', () => {
+  const showingAdvanced = !advancedView.hidden;
+
+  if (!showingAdvanced && !advancedModeBuilt) {
+    new AdvancedModeView(advancedView, store, roccService);
+    advancedModeBuilt = true;
+  }
+
+  dashboardView.hidden = !showingAdvanced;
+  advancedView.hidden = showingAdvanced;
+  advancedModeToggle.textContent = showingAdvanced ? 'Advanced Mode' : 'Basic Mode';
+});
